@@ -144,6 +144,33 @@
     transform: scale(1.1);
 }
 
+.location-icon {
+    cursor: pointer;
+    color: white;
+    transition: all 0.3s ease;
+    padding: 0.3rem;
+    border-radius: 50%;
+}
+
+.location-icon:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+    animation: pulse 0.5s ease-in-out;
+}
+
+.location-icon:active {
+    transform: scale(0.95);
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.15);
+    }
+}
+
 /* City Suggestions Dropdown */
 .suggestions-dropdown {
     position: absolute;

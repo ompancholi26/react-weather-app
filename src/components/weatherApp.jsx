@@ -7,7 +7,7 @@ import snowy from "../assets/images/snowy.png";
 import sunny from "../assets/images/sunny.png";
 import { API_KEY } from "../assets/apikey";
 import './weatherApp.css'
-import { IconMapPinFilled, IconSearch, IconDroplet, IconWind, IconGauge, IconEye, IconTemperature, IconArrowUp, IconArrowDown } from "@tabler/icons-react";
+import { IconMapPinFilled, IconSearch, IconDroplet, IconWind, IconGauge, IconEye, IconTemperature, IconArrowUp, IconArrowDown, IconCurrentLocation } from "@tabler/icons-react";
 const API_URL = "https://api.openweathermap.org/data/2.5/weather";
 const GEO_API_URL = "https://api.openweathermap.org/geo/1.0/direct";
 
@@ -30,18 +30,31 @@ const backgroundImages = {
 };
 
 const WeatherApp = function () {
-    const [city, setCity] = useState("New delhi");
+    const [city, setCity] = useState("");
     const [inputValue, setInputValue] = useState("");
     const [weatherData, setWeatherData] = useState(null);
     const [loadingState, setLoadingState] = useState(false);
     const [error, setError] = useState(null);
     const [suggestions, setSuggestions] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
+    const [isDetectingLocation, setIsDetectingLocation] = useState(true);
     const debounceTimer = useRef(null);
     const suggestionsRef = useRef(null);
+    const hasDetectedLocation = useRef(false);
 
+    // Auto-detect location on first load
     useEffect(() => {
-        fetchResult();
+        if (!hasDetectedLocation.current) {
+            detectUserLocation();
+            hasDetectedLocation.current = true;
+        }
+    }, []);
+
+    // Fetch weather when city changes (but not on initial empty state)
+    useEffect(() => {
+        if (city && city.trim() !== "") {
+            fetchResult();
+        }
     }, [city]);
 
     const fetchResult = async () => {
@@ -59,6 +72,75 @@ const WeatherApp = function () {
             setWeatherData(null);
         } finally {
             setLoadingState(false);
+            setIsDetectingLocation(false);
+        }
+    };
+
+    const fetchWeatherByCoordinates = async (lat, lon) => {
+        setLoadingState(true);
+        setError(null);
+        try {
+            const response = await axios.get(API_URL, {
+                params: { lat, lon, appid: API_KEY, units: "metric" },
+            });
+            setWeatherData(response.data);
+            setCity(response.data.name);
+            setInputValue(`${response.data.name}, ${response.data.sys?.country}`);
+            console.log("Location data:", response.data);
+        } catch (err) {
+            console.error("Location API error:", err);
+            setError("Unable to fetch weather for your location");
+            // Fallback to default city
+            setCity("New Delhi");
+        } finally {
+            setLoadingState(false);
+            setIsDetectingLocation(false);
+        }
+    };
+
+    const detectUserLocation = () => {
+        setIsDetectingLocation(true);
+        setLoadingState(true);
+
+        if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const { latitude, longitude } = position.coords;
+                    console.log("Location detected:", latitude, longitude);
+                    fetchWeatherByCoordinates(latitude, longitude);
+                },
+                (error) => {
+                    console.error("Geolocation error:", error);
+                    let errorMessage = "Unable to detect location";
+                    
+                    switch (error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMessage = "Location access denied. Using default location.";
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMessage = "Location unavailable. Using default location.";
+                            break;
+                        case error.TIMEOUT:
+                            errorMessage = "Location request timed out. Using default location.";
+                            break;
+                    }
+                    
+                    setError(errorMessage);
+                    // Fallback to default city
+                    setCity("New Delhi");
+                    setIsDetectingLocation(false);
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        } else {
+            console.log("Geolocation not supported");
+            setError("Geolocation not supported by your browser");
+            setCity("New Delhi");
+            setIsDetectingLocation(false);
         }
     };
 
@@ -164,6 +246,11 @@ const WeatherApp = function () {
                             onKeyPress={handleKeyPress}
                             onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
                         />
+                        <IconCurrentLocation 
+                            className="location-icon" 
+                            onClick={detectUserLocation}
+                            title="Detect my location"
+                        />
                         <IconSearch className="search-icon" onClick={handleSearchClick} />
                         
                         {/* City Suggestions Dropdown */}
@@ -192,7 +279,9 @@ const WeatherApp = function () {
                 {loadingState && (
                     <div className="loading-container">
                         <img src={loading} alt="loading" className="loading-gif" />
-                        <p className="loading-text">Fetching weather...</p>
+                        <p className="loading-text">
+                            {isDetectingLocation ? "Detecting your location..." : "Fetching weather..."}
+                        </p>
                     </div>
                 )}
                 
