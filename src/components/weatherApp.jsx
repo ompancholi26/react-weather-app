@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import cloudy from "../assets/images/cloudy.png";
 import loading from "../assets/images/loading.gif";
@@ -9,6 +9,7 @@ import { API_KEY } from "../assets/apikey";
 import './weatherApp.css'
 import { IconMapPinFilled, IconSearch, IconDroplet, IconWind, IconGauge, IconEye, IconTemperature, IconArrowUp, IconArrowDown } from "@tabler/icons-react";
 const API_URL = "https://api.openweathermap.org/data/2.5/weather";
+const GEO_API_URL = "https://api.openweathermap.org/geo/1.0/direct";
 
 const weatherImages = {
     Clear: sunny,
@@ -30,9 +31,14 @@ const backgroundImages = {
 
 const WeatherApp = function () {
     const [city, setCity] = useState("New delhi");
+    const [inputValue, setInputValue] = useState("");
     const [weatherData, setWeatherData] = useState(null);
     const [loadingState, setLoadingState] = useState(false);
     const [error, setError] = useState(null);
+    const [suggestions, setSuggestions] = useState([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const debounceTimer = useRef(null);
+    const suggestionsRef = useRef(null);
 
     useEffect(() => {
         fetchResult();
@@ -56,12 +62,82 @@ const WeatherApp = function () {
         }
     };
 
-    const handleInputChange = (e) => {
-        const value = e.target.value;
-        if (value.trim() !== "") {
-            setCity(value);
+    const fetchCitySuggestions = async (query) => {
+        if (query.length < 2) {
+            setSuggestions([]);
+            return;
+        }
+
+        try {
+            const response = await axios.get(GEO_API_URL, {
+                params: {
+                    q: query,
+                    limit: 5,
+                    appid: API_KEY,
+                },
+            });
+            setSuggestions(response.data);
+            setShowSuggestions(true);
+        } catch (err) {
+            console.error("Geocoding error:", err);
+            setSuggestions([]);
         }
     };
+
+    const handleInputChange = (e) => {
+        const value = e.target.value;
+        setInputValue(value);
+
+        // Clear previous timer
+        if (debounceTimer.current) {
+            clearTimeout(debounceTimer.current);
+        }
+
+        // Set new timer for debounced API call
+        debounceTimer.current = setTimeout(() => {
+            if (value.trim() !== "") {
+                fetchCitySuggestions(value);
+            } else {
+                setSuggestions([]);
+                setShowSuggestions(false);
+            }
+        }, 300); // Wait 300ms after user stops typing
+    };
+
+    const handleSuggestionClick = (suggestion) => {
+        const cityName = `${suggestion.name}${suggestion.state ? ', ' + suggestion.state : ''}, ${suggestion.country}`;
+        setCity(suggestion.name);
+        setInputValue(cityName);
+        setSuggestions([]);
+        setShowSuggestions(false);
+    };
+
+    const handleSearchClick = () => {
+        if (inputValue.trim() !== "") {
+            setCity(inputValue);
+            setShowSuggestions(false);
+        }
+    };
+
+    const handleKeyPress = (e) => {
+        if (e.key === 'Enter') {
+            handleSearchClick();
+        }
+    };
+
+    // Close suggestions when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (suggestionsRef.current && !suggestionsRef.current.contains(event.target)) {
+                setShowSuggestions(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
     const weatherznames = weatherData?.weather?.[0]?.main;
 
     const backgroundImage = backgroundImages[weatherznames] || backgroundImages["Clear"];
@@ -79,13 +155,36 @@ const WeatherApp = function () {
                         {weatherData?.name && <span>{weatherData.name}, {weatherData.sys?.country}</span>}
                     </div>
                     
-                    <div className="search-bar">
+                    <div className="search-bar" ref={suggestionsRef}>
                         <input 
                             type="text"
                             placeholder="Search for a city..."
+                            value={inputValue}
                             onChange={handleInputChange}
+                            onKeyPress={handleKeyPress}
+                            onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
                         />
-                        <IconSearch className="search-icon" />
+                        <IconSearch className="search-icon" onClick={handleSearchClick} />
+                        
+                        {/* City Suggestions Dropdown */}
+                        {showSuggestions && suggestions.length > 0 && (
+                            <div className="suggestions-dropdown">
+                                {suggestions.map((suggestion, index) => (
+                                    <div
+                                        key={`${suggestion.lat}-${suggestion.lon}-${index}`}
+                                        className="suggestion-item"
+                                        onClick={() => handleSuggestionClick(suggestion)}
+                                    >
+                                        <IconMapPinFilled size={16} />
+                                        <div className="suggestion-text">
+                                            <span className="suggestion-name">{suggestion.name}</span>
+                                            {suggestion.state && <span className="suggestion-state">, {suggestion.state}</span>}
+                                            <span className="suggestion-country"> - {suggestion.country}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
 

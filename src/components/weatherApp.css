@@ -106,6 +106,7 @@
     width: 100%;
     transition: all 0.3s ease;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    position: relative;
 }
 
 .search-bar:focus-within {
@@ -141,6 +142,84 @@
 .search-icon:hover {
     background: rgba(255, 255, 255, 0.2);
     transform: scale(1.1);
+}
+
+/* City Suggestions Dropdown */
+.suggestions-dropdown {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    left: 0;
+    right: 0;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(15px);
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    max-height: 250px;
+    overflow-y: auto;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.suggestions-dropdown::-webkit-scrollbar {
+    width: 6px;
+}
+
+.suggestions-dropdown::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.suggestions-dropdown::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+}
+
+.suggestion-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.85rem 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.suggestion-item:hover {
+    background: rgba(103, 126, 234, 0.15);
+    padding-left: 1.5rem;
+}
+
+.suggestion-item svg {
+    color: #667eea;
+    flex-shrink: 0;
+}
+
+.suggestion-text {
+    flex: 1;
+    font-size: 0.95rem;
+    color: #333;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.suggestion-name {
+    font-weight: 600;
+    color: #2d3748;
+}
+
+.suggestion-state {
+    color: #4a5568;
+    font-weight: 500;
+}
+
+.suggestion-country {
+    color: #718096;
+    font-weight: 400;
 }
 
 .weather-image {
